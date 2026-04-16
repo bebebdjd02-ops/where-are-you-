@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>where are you?</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+
+<style>
+body {
+    margin:0;
+    background:black;
+    color:white;
+    font-family:'Space Grotesk';
+    overflow:hidden;
+}
+
+/* ================= POPUP ================= */
+
+#popup {
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:400px;
+    background:black;
+    border:1px solid white;
+    padding:20px;
+    z-index:999;
+}
+
+#popup h2 {
+    font-size:18px;
+    margin-bottom:10px;
+}
+
+#popup button {
+    margin-top:15px;
+    background:white;
+    border:none;
+    padding:8px;
+    cursor:pointer;
+}
+
+/* ================= UI ================= */
+
+#mainPage { text-align:center; margin-top:20%; }
+
+#launchBox { display:inline-flex; border:1px solid white; }
+
+#launchBox input {
+    background:black; color:white; border:none; padding:10px; font-style:italic;
+}
+
+#launchBox button {
+    background:white; color:black; border:none; padding:10px; cursor:pointer;
+}
+
+#userBar { position:absolute; top:10px; left:10px; font-size:14px; }
+
+#togglePanel { position:absolute; left:10px; top:50%; cursor:pointer; }
+
+#closePanel { position:absolute; top:10px; right:10px; cursor:pointer; }
+
+#pauseBtn { position:absolute; top:10px; right:50px; cursor:pointer; }
+
+#sidePanel {
+    position:absolute;
+    left:0;
+    top:0;
+    width:300px;
+    height:100%;
+    background:#111;
+    padding:10px;
+    transform:translateX(-100%);
+    transition:0.3s;
+}
+
+#sidePanel.open { transform:translateX(0); }
+
+.result { cursor:pointer; margin:5px 0; }
+
+#nodePage, #fileViewer {
+    position:absolute;
+    width:100%;
+    height:100%;
+    background:black;
+    display:none;
+    padding:40px;
+    overflow:auto;
+}
+
+video {
+    width:100%;
+    height:80vh;
+}
+</style>
+</head>
+
+<body>
+
+<!-- POPUP -->
+<div id="popup">
+<h2>Dossier Disparition – Angers, 4 Avril 2012</h2>
+<p>
+Bonjour,<br><br>
+Si vous consultez ce message, c’est que vous avez accédé à une base de données sensible.<br><br>
+Je suis un ancien agent affecté à la mairie du Mans. J’ai été écarté après avoir commencé à enquêter sur une affaire classée sans suite : un meurtre survenu à Angers, quartier de la Doutre, en 2012.<br><br>
+Le corps n’a jamais été retrouvé. Certaines données ont été volontairement supprimées.<br><br>
+Ces dossiers pourraient contenir les éléments manquants.<br><br>
+Soyez prudent.
+</p>
+<button onclick="closePopup()">Fermer</button>
+</div>
+
+<div id="mainPage">
+<h1>Lancer une recherche dans la base de fichiers</h1>
+<div id="launchBox">
+<input id="username" placeholder="Créer votre nom d’utilisateur">
+<button onclick="start()">Lancer</button>
+</div>
+</div>
+
+<div id="app" style="display:none;">
+<div id="userBar"></div>
+<div id="togglePanel">▶</div>
+<div id="closePanel">✖</div>
+<div id="pauseBtn">⏸</div>
+
+<div id="sidePanel">
+<input id="searchInput" placeholder="Rechercher...">
+<div id="results"></div>
+</div>
+
+<canvas id="network"></canvas>
+</div>
+
+<div id="nodePage">
+<h2 id="nodeTitle"></h2>
+<div id="nodeFiles"></div>
+<button onclick="closeNode()">✖</button>
+</div>
+
+<div id="fileViewer">
+<h2 id="fileTitle"></h2>
+<div id="fileContent"></div>
+<button onclick="closeFile()">✖</button>
+</div>
+
+<script>
+
+// ================= POPUP =================
+function closePopup(){
+document.getElementById("popup").style.display="none";
+}
+
+// ================= DATA =================
+const nodes = [];
+
+for(let i=1;i<=100;i++){
+nodes.push({
+id:"NODE-"+i,
+password:"0000",
+files:[
+{ 
+name:"Rapport "+i, 
+content:"rapport",
+doc:"rapport"+i+"/preuve_"+i+".mp4"
+}
+]
+});
+}
+
+// ================= START =================
+function start(){
+let name=username.value || "Anonyme";
+userBar.innerHTML=name+" • en ligne";
+
+mainPage.style.display="none";
+app.style.display="block";
+
+init3D();
+}
+
+// ================= PANEL =================
+togglePanel.onclick=()=> sidePanel.classList.toggle("open");
+closePanel.onclick=()=> sidePanel.classList.remove("open");
+
+// ================= PAUSE =================
+pauseBtn.onclick=()=>{
+autoRotate = !autoRotate;
+pauseBtn.innerText = autoRotate ? "⏸" : "▶";
+};
+
+// ================= SEARCH =================
+searchInput.oninput=(e)=>{
+let t=e.target.value.toLowerCase();
+results.innerHTML="";
+let found=false;
+
+nodes.forEach(n=>{
+n.files.forEach(f=>{
+if(f.content.includes(t)){
+found=true;
+
+let div=document.createElement("div");
+div.className="result";
+div.innerText="→ "+n.id+" : "+f.name;
+div.onclick=()=>zoomToNode(n);
+
+results.appendChild(div);
+}
+});
+});
+
+if(!found) results.innerHTML="Aucune proposition";
+};
+
+// ================= 3D =================
+let scene,camera,renderer,meshes=[],lines=[];
+let autoRotate=true;
+
+let move = {forward:false,back:false,left:false,right:false};
+
+function init3D(){
+
+scene=new THREE.Scene();
+
+camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+camera.position.z=40;
+
+renderer=new THREE.WebGLRenderer({canvas:network, antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+
+// nodes
+let geo=new THREE.SphereGeometry(0.3);
+let mat=new THREE.MeshBasicMaterial({color:0xffffff});
+
+nodes.forEach(n=>{
+let m=new THREE.Mesh(geo,mat);
+m.position.set(
+(Math.random()-0.5)*60,
+(Math.random()-0.5)*60,
+(Math.random()-0.5)*60
+);
+m.userData=n;
+scene.add(m);
+meshes.push(m);
+});
+
+// branches
+let lmat=new THREE.LineBasicMaterial({
+color:0xffffff,
+transparent:true,
+opacity:0.25
+});
+
+for(let i=0;i<nodes.length;i++){
+for(let j=i+1;j<nodes.length;j++){
+if(Math.random()<0.12){
+let g=new THREE.BufferGeometry().setFromPoints([
+meshes[i].position,
+meshes[j].position
+]);
+let line=new THREE.Line(g,lmat);
+scene.add(line);
+lines.push(line);
+}
+}
+}
+
+// CLICK
+let ray=new THREE.Raycaster();
+let mouse=new THREE.Vector2();
+
+window.addEventListener("click",(e)=>{
+mouse.x=(e.clientX/window.innerWidth)*2-1;
+mouse.y=-(e.clientY/window.innerHeight)*2+1;
+ray.setFromCamera(mouse,camera);
+let hit=ray.intersectObjects(meshes);
+if(hit.length>0) openNode(hit[0].object.userData);
+});
+
+// ZOOM
+window.addEventListener("wheel",(e)=>{
+camera.position.z += e.deltaY * 0.02;
+});
+
+// CLAVIER (déplacement)
+window.addEventListener("keydown",(e)=>{
+if(e.key==="z") move.forward=true;
+if(e.key==="s") move.back=true;
+if(e.key==="q") move.left=true;
+if(e.key==="d") move.right=true;
+});
+
+window.addEventListener("keyup",(e)=>{
+if(e.key==="z") move.forward=false;
+if(e.key==="s") move.back=false;
+if(e.key==="q") move.left=false;
+if(e.key==="d") move.right=false;
+});
+
+// DRAG
+let drag=false,px,py;
+
+window.onmousedown=e=>{drag=true;px=e.clientX;py=e.clientY;}
+window.onmouseup=()=>drag=false;
+
+window.onmousemove=e=>{
+if(!drag)return;
+scene.rotation.y+=(e.clientX-px)*0.005;
+scene.rotation.x+=(e.clientY-py)*0.005;
+px=e.clientX;py=e.clientY;
+};
+
+animate();
+}
+
+function animate(){
+requestAnimationFrame(animate);
+
+if(autoRotate) scene.rotation.y+=0.001;
+
+// déplacement caméra
+if(move.forward) camera.position.z -= 0.5;
+if(move.back) camera.position.z += 0.5;
+if(move.left) camera.position.x -= 0.5;
+if(move.right) camera.position.x += 0.5;
+
+renderer.render(scene,camera);
+}
+
+// ================= NODE =================
+
+function openNode(node){
+
+let code=prompt("Code d'accès");
+
+if(code!==node.password){
+
+// 🔥 ROUGE
+lines.forEach(l=>l.material.color.set(0xff0000));
+meshes.forEach(m=>m.material.color.set(0xff0000));
+
+// 🔥 RETOUR BLANC
+setTimeout(()=>{
+lines.forEach(l=>l.material.color.set(0xffffff));
+meshes.forEach(m=>m.material.color.set(0xffffff));
+},5000);
+
+alert("Accès refusé");
+return;
+}
+
+zoomToNode(node);
+}
+
+// ================= ZOOM =================
+
+function zoomToNode(node){
+
+let i=0;
+let int=setInterval(()=>{
+
+camera.position.lerp(
+new THREE.Vector3(0,0,5),
+0.1
+);
+
+i++;
+
+if(i>30){
+clearInterval(int);
+openNodePage(node);
+}
+
+},16);
+}
+
+// ================= DOSSIER =================
+
+function openNodePage(node){
+
+app.style.display="none";
+nodePage.style.display="block";
+
+nodeTitle.innerText="Dossier "+node.id;
+nodeFiles.innerHTML="";
+
+node.files.forEach(f=>{
+let el=document.createElement("div");
+el.innerText="📄 "+f.name;
+el.onclick=()=>openFile(f);
+nodeFiles.appendChild(el);
+});
+}
+
+function closeNode(){
+nodePage.style.display="none";
+app.style.display="block";
+}
+
+// ================= FILE =================
+
+function openFile(file){
+
+nodePage.style.display="none";
+fileViewer.style.display="block";
+
+fileTitle.innerText=file.name;
+
+fileContent.innerHTML = `
+<video controls autoplay>
+<source src="${file.doc}" type="video/mp4">
+</video>
+`;
+}
+
+function closeFile(){
+fileViewer.style.display="none";
+nodePage.style.display="block";
+}
+
+</script>
+
+</body>
+</html>
