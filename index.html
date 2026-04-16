@@ -16,6 +16,31 @@ body {
     overflow:hidden;
 }
 
+/* ================= POPUP ================= */
+
+#popup {
+    position:fixed;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:420px;
+    background:black;
+    border:1px solid white;
+    padding:20px;
+    z-index:999;
+    text-align:center;
+}
+
+#popup button {
+    margin-top:15px;
+    background:white;
+    border:none;
+    padding:8px;
+    cursor:pointer;
+}
+
+/* ================= UI ================= */
+
 #mainPage { text-align:center; margin-top:20%; }
 
 #launchBox { display:inline-flex; border:1px solid white; }
@@ -32,19 +57,9 @@ body {
 
 #togglePanel { position:absolute; left:10px; top:50%; cursor:pointer; }
 
-#closePanel {
-    position:absolute;
-    top:10px;
-    right:10px;
-    cursor:pointer;
-}
+#closePanel { position:absolute; top:10px; right:10px; cursor:pointer; }
 
-#pauseBtn {
-    position:absolute;
-    top:10px;
-    right:50px;
-    cursor:pointer;
-}
+#pauseBtn { position:absolute; top:10px; right:50px; cursor:pointer; }
 
 #sidePanel {
     position:absolute;
@@ -80,6 +95,20 @@ video {
 </head>
 
 <body>
+
+<!-- POPUP -->
+<div id="popup">
+<h2>Dossier Disparition – Angers, 4 Avril 2012</h2>
+<p>
+Bonjour,<br><br>
+Si vous consultez ce message, c’est que vous avez accédé à une base de données sensible.<br><br>
+Je suis un ancien agent affecté à la mairie du Mans. J’ai été écarté après avoir commencé à enquêter sur une affaire classée sans suite : un meurtre survenu à Angers, quartier de la Doutre, en 2012.<br><br>
+Le corps n’a jamais été retrouvé. Certaines données ont été volontairement supprimées.<br><br>
+Ces dossiers pourraient contenir les éléments manquants.<br><br>
+Soyez prudent.
+</p>
+<button onclick="closePopup()">Fermer</button>
+</div>
 
 <div id="mainPage">
 <h1>Lancer une recherche dans la base de fichiers</h1>
@@ -121,6 +150,11 @@ video {
 
 <script>
 
+// ================= POPUP =================
+function closePopup(){
+document.getElementById("popup").style.display="none";
+}
+
 // ================= DATA =================
 
 const nodes = [];
@@ -134,7 +168,7 @@ files:[
 name:"Rapport "+i, 
 content:"rapport",
 
-// 🔥 ICI LA SEULE MODIF (LIEN GITHUB)
+// 🔥 vidéos GitHub
 doc:"https://raw.githubusercontent.com/bebebdjd02-ops/where-are-you-/main/preuve_"+i+".mp4"
 
 }
@@ -255,7 +289,7 @@ let hit=ray.intersectObjects(meshes);
 if(hit.length>0) openNode(hit[0].object.userData);
 });
 
-// zoom souris 🔥
+// zoom souris
 window.addEventListener("wheel",(e)=>{
 camera.position.z += e.deltaY * 0.02;
 });
