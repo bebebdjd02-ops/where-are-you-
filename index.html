@@ -16,35 +16,6 @@ body {
     overflow:hidden;
 }
 
-/* ================= POPUP ================= */
-
-#popup {
-    position:fixed;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    width:400px;
-    background:black;
-    border:1px solid white;
-    padding:20px;
-    z-index:999;
-}
-
-#popup h2 {
-    font-size:18px;
-    margin-bottom:10px;
-}
-
-#popup button {
-    margin-top:15px;
-    background:white;
-    border:none;
-    padding:8px;
-    cursor:pointer;
-}
-
-/* ================= UI ================= */
-
 #mainPage { text-align:center; margin-top:20%; }
 
 #launchBox { display:inline-flex; border:1px solid white; }
@@ -61,9 +32,19 @@ body {
 
 #togglePanel { position:absolute; left:10px; top:50%; cursor:pointer; }
 
-#closePanel { position:absolute; top:10px; right:10px; cursor:pointer; }
+#closePanel {
+    position:absolute;
+    top:10px;
+    right:10px;
+    cursor:pointer;
+}
 
-#pauseBtn { position:absolute; top:10px; right:50px; cursor:pointer; }
+#pauseBtn {
+    position:absolute;
+    top:10px;
+    right:50px;
+    cursor:pointer;
+}
 
 #sidePanel {
     position:absolute;
@@ -100,22 +81,9 @@ video {
 
 <body>
 
-<!-- POPUP -->
-<div id="popup">
-<h2>Dossier Disparition – Angers, 4 Avril 2012</h2>
-<p>
-Bonjour,<br><br>
-Si vous consultez ce message, c’est que vous avez accédé à une base de données sensible.<br><br>
-Je suis un ancien agent affecté à la mairie du Mans. J’ai été écarté après avoir commencé à enquêter sur une affaire classée sans suite : un meurtre survenu à Angers, quartier de la Doutre, en 2012.<br><br>
-Le corps n’a jamais été retrouvé. Certaines données ont été volontairement supprimées.<br><br>
-Ces dossiers pourraient contenir les éléments manquants.<br><br>
-Soyez prudent.
-</p>
-<button onclick="closePopup()">Fermer</button>
-</div>
-
 <div id="mainPage">
 <h1>Lancer une recherche dans la base de fichiers</h1>
+
 <div id="launchBox">
 <input id="username" placeholder="Créer votre nom d’utilisateur">
 <button onclick="start()">Lancer</button>
@@ -123,7 +91,9 @@ Soyez prudent.
 </div>
 
 <div id="app" style="display:none;">
+
 <div id="userBar"></div>
+
 <div id="togglePanel">▶</div>
 <div id="closePanel">✖</div>
 <div id="pauseBtn">⏸</div>
@@ -134,6 +104,7 @@ Soyez prudent.
 </div>
 
 <canvas id="network"></canvas>
+
 </div>
 
 <div id="nodePage">
@@ -150,12 +121,8 @@ Soyez prudent.
 
 <script>
 
-// ================= POPUP =================
-function closePopup(){
-document.getElementById("popup").style.display="none";
-}
-
 // ================= DATA =================
+
 const nodes = [];
 
 for(let i=1;i<=100;i++){
@@ -166,13 +133,17 @@ files:[
 { 
 name:"Rapport "+i, 
 content:"rapport",
-doc:"rapport"+i+"/preuve_"+i+".mp4"
+
+// 🔥 ICI LA SEULE MODIF (LIEN GITHUB)
+doc:"https://raw.githubusercontent.com/bebebdjd02-ops/where-are-you-/main/preuve_"+i+".mp4"
+
 }
 ]
 });
 }
 
 // ================= START =================
+
 function start(){
 let name=username.value || "Anonyme";
 userBar.innerHTML=name+" • en ligne";
@@ -184,16 +155,19 @@ init3D();
 }
 
 // ================= PANEL =================
+
 togglePanel.onclick=()=> sidePanel.classList.toggle("open");
 closePanel.onclick=()=> sidePanel.classList.remove("open");
 
 // ================= PAUSE =================
+
 pauseBtn.onclick=()=>{
 autoRotate = !autoRotate;
 pauseBtn.innerText = autoRotate ? "⏸" : "▶";
 };
 
 // ================= SEARCH =================
+
 searchInput.oninput=(e)=>{
 let t=e.target.value.toLowerCase();
 results.innerHTML="";
@@ -218,10 +192,9 @@ if(!found) results.innerHTML="Aucune proposition";
 };
 
 // ================= 3D =================
+
 let scene,camera,renderer,meshes=[],lines=[];
 let autoRotate=true;
-
-let move = {forward:false,back:false,left:false,right:false};
 
 function init3D(){
 
@@ -270,7 +243,7 @@ lines.push(line);
 }
 }
 
-// CLICK
+// click
 let ray=new THREE.Raycaster();
 let mouse=new THREE.Vector2();
 
@@ -282,53 +255,17 @@ let hit=ray.intersectObjects(meshes);
 if(hit.length>0) openNode(hit[0].object.userData);
 });
 
-// ZOOM
+// zoom souris 🔥
 window.addEventListener("wheel",(e)=>{
 camera.position.z += e.deltaY * 0.02;
 });
-
-// CLAVIER (déplacement)
-window.addEventListener("keydown",(e)=>{
-if(e.key==="z") move.forward=true;
-if(e.key==="s") move.back=true;
-if(e.key==="q") move.left=true;
-if(e.key==="d") move.right=true;
-});
-
-window.addEventListener("keyup",(e)=>{
-if(e.key==="z") move.forward=false;
-if(e.key==="s") move.back=false;
-if(e.key==="q") move.left=false;
-if(e.key==="d") move.right=false;
-});
-
-// DRAG
-let drag=false,px,py;
-
-window.onmousedown=e=>{drag=true;px=e.clientX;py=e.clientY;}
-window.onmouseup=()=>drag=false;
-
-window.onmousemove=e=>{
-if(!drag)return;
-scene.rotation.y+=(e.clientX-px)*0.005;
-scene.rotation.x+=(e.clientY-py)*0.005;
-px=e.clientX;py=e.clientY;
-};
 
 animate();
 }
 
 function animate(){
 requestAnimationFrame(animate);
-
 if(autoRotate) scene.rotation.y+=0.001;
-
-// déplacement caméra
-if(move.forward) camera.position.z -= 0.5;
-if(move.back) camera.position.z += 0.5;
-if(move.left) camera.position.x -= 0.5;
-if(move.right) camera.position.x += 0.5;
-
 renderer.render(scene,camera);
 }
 
@@ -340,11 +277,10 @@ let code=prompt("Code d'accès");
 
 if(code!==node.password){
 
-// 🔥 ROUGE
+// 🔥 animation rouge
 lines.forEach(l=>l.material.color.set(0xff0000));
 meshes.forEach(m=>m.material.color.set(0xff0000));
 
-// 🔥 RETOUR BLANC
 setTimeout(()=>{
 lines.forEach(l=>l.material.color.set(0xffffff));
 meshes.forEach(m=>m.material.color.set(0xffffff));
